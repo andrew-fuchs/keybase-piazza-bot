@@ -5,9 +5,13 @@ import asyncio
 import logging
 import re
 import sys
+import urllib
 
+from piazza_api import Piazza
 from pykeybasebot import Bot, KbEvent
 from pykeybasebot.types import chat1
+
+PIAZZA_NETWORK_ID = 'kcf5s96ygzq24b'
 
 logger = logging.getLogger('keybase_piazza_bot')
 # CSE220_ServerBot
@@ -23,7 +27,11 @@ def main(argv=sys.argv[1:]):
 
     event_loop = asyncio.get_event_loop()
 
-    keybase_bot_handler = KeybaseBotHandler()
+    piazza = Piazza()
+    piazza.user_login() # login prompt
+    cse220 = piazza.network(PIAZZA_NETWORK_ID)
+
+    keybase_bot_handler = KeybaseBotHandler(piazza, cse220)
     keybase_bot = Bot(
         handler=keybase_bot_handler,
         loop=event_loop,
@@ -38,6 +46,10 @@ def main(argv=sys.argv[1:]):
 
 
 class KeybaseBotHandler:
+    def __init__(self, piazza, piazza_network):
+        self.piazza = piazza
+        self.piazza_network = piazza_network
+
     async def __call__(self, bot: Bot, event: KbEvent):
         print('handling', event)
 
@@ -60,20 +72,32 @@ class KeybaseBotHandler:
         # is this the "!piazza" command?
         if msg_text_body.lower().startswith('!piazza'):
             # check if the command is valid and parse the post id
-            match = re.match(r'^!piazza (?P<post_id>\d+?)$', msg_text_body, re.IGNORECASE)
+            match = re.match(r'^!piazza @?(?P<post_id>\d+?)$', msg_text_body, re.IGNORECASE)
             if match:
                 try:
                     piazza_post_id = int(match['post_id'])
                 except ValueError as exc:
                     logger.error('invalid post id', exc_info=exc)
                     return
+
+                # get post info from piazza
+                post = self.piazza_network.get_post(piazza_post_id)
+
                 # send the bot's reply
                 msg_sender_username_esc = escape_chat_chars(msg_sender_username)
                 piazza_post_id_esc = escape_chat_chars(str(piazza_post_id))
                 await chat_reply(bot, msg_channel, msg_id,
-                        '@{} Piazza post `@{}`'.format(
-                            msg_sender_username_esc, piazza_post_id_esc
+                        '@{} Piazza post `@{}`:\n{}\n*{:.100s}*\n>{:.200s}'.format(
+                            msg_sender_username_esc,
+                            escape_chat_chars(str(post['nr'])),
+                            piazza_post_url(PIAZZA_NETWORK_ID, post['nr']),
+                            escape_chat_chars(str(post['history'][0]['subject'])),
+                            kb_quote(escape_chat_chars(str(post['history'][0]['content']))),
                         ))
+                # await chat_reply(bot, msg_channel, msg_id,
+                #         '@{} Piazza post `@{}`'.format(
+                #             msg_sender_username_esc, piazza_post_id_esc
+                #         ))
             else:
                 # send an error message
                 msg_sender_username_esc = escape_chat_chars(msg_sender_username)
@@ -81,6 +105,7 @@ class KeybaseBotHandler:
                         '@{} Use `!piazza <Post ID>`'.format(
                             msg_sender_username_esc
                         ))
+
 
     async def handle_reaction_message(self, bot: Bot, event: KbEvent):
         # channel = event.msg.channel
@@ -123,6 +148,17 @@ async def chat_reply(bot: Bot, channel: chat1.ChatChannel,
     return chat1.SendRes.from_dict(result)
 
 
+def piazza_post_url(network_id: str, post_nr: int):
+    network_id_str = urllib.parse.quote_plus(network_id)
+    post_nr = str(post_nr)
+    post_nr_str = urllib.parse.quote_plus(post_nr)
+    return 'https://piazza.com/class/{}?cid={}'.format(network_id_str, post_nr_str)
+
+
+def kb_quote(in_str: str):
+    return in_str.replace('\n', '\n>')
+
+
 def escape_chat_chars(escape_str: str):
     # replace formatting chars with escaped versions
     # # TODO I doubt this is comprehensive
@@ -135,10 +171,10 @@ def escape_chat_chars(escape_str: str):
     # escape_str = escape_str.replace('#', '\\#')
     # return escape_str
 
-    # escape anything that is not a letter ([a-zA-Z]) or number ([0-9])
+    # escape anything that is not a letter ([a-zA-Z]), number ([0-9]), or whitespace
     out_str = ''
     for ch in escape_str:
-        if ch.isalnum():
+        if ch.isalnum() or ch.isspace():
             out_str += ch
         else:
             out_str += '\\' + ch
