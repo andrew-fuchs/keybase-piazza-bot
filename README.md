@@ -3,6 +3,7 @@
 ## Dependencies
 
   * Python >= 3.7
+  * piazza-api
   * pykeybasebot
 
 ## Development
