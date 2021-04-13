@@ -14,16 +14,16 @@ from pykeybasebot.types import chat1
 from .piazza import piazza_post_url
 from .keybase import chat_reply, escape_chat_chars, kb_quote
 
-PIAZZA_NETWORK_ID = 'kcf5s96ygzq24b'
+# !!! put the `network id` of the class this bot is for here
+PIAZZA_NETWORK_ID = 'REPLACE WITH YOUR CLASS\'S PIAZZA NETWORK ID'
 
 logger = logging.getLogger('keybase_piazza_bot')
-# CSE220_ServerBot
 
 
 def main(argv=sys.argv[1:]):
     argument_parser = argparse.ArgumentParser()
-    argument_parser.add_argument('--username', type=str,
-            default='PiazzaBot', help='the bot\'s Keybase username')
+    # argument_parser.add_argument('--username', type=str,
+    #         default='PiazzaBot', help='the bot\'s Keybase username')
     args = argument_parser.parse_args(argv)
 
     logger.info('keybase_piazza_bot starting')
@@ -85,6 +85,7 @@ class KeybaseBotHandler:
 
                 # get post info from piazza
                 post = self.piazza_network.get_post(piazza_post_id)
+                # FIXME: for production code we should be doing error handling here
 
                 # send the bot's reply
                 await chat_reply(bot, msg_channel, msg_id,
