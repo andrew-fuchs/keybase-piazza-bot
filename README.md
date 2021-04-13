@@ -1,5 +1,17 @@
 # A Piazza Bot for Keybase
 
+A proof of concept bot for [Keybase](https://keybase.io/) that responds
+to a `!piazza <POST #>` command by fetching the relevant post from the
+[Piazza](https://piazza.com/) e-learning Q&A platform and replying in
+Keybase chat with a link and the first few lines of the post.
+
+Keep in mind that this was written as a proof of concept, does not
+gracefully handle every error that could occur, and thus should not be
+considered production code.
+
+Note for anyone looking through this code: the main entry point is in
+[`keybase_piazza_bot/__init__.py`](keybase_piazza_bot/__init__.py)
+
 ## Dependencies
 
   * Python >= 3.7
